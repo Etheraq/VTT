@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from tkinter import *
-from tkinter import ttk
-from tkinter import filedialog
+from tkinter import ttk, filedialog, messagebox
+# from tkinter import filedialog
 from datetime import datetime, date, time, timedelta
 import os
 import re
@@ -10,6 +10,7 @@ import math
 # root frame
 root = Tk()
 root.title("VTT CueEdit")
+root.resizable(0, 0)    # root window cannot be resized
 
 # global variables
 file1_path, file2_path = "", ""
@@ -26,7 +27,9 @@ delta_sec.set("00")
 delta_milli = StringVar()
 delta_milli.set("000")
 
+
 # TODO Need to update delta on text entry into spinboxes
+
 
 def openfile():
     """Creates an Open File dialog window and sets the application
@@ -46,36 +49,52 @@ def openfile():
     update_entry(filelabel, file1_name)
     update_entry(oldcue, get_firstcueline())
 
-    set_zero()
+    if mode.get() == "add" or mode.get() == "subtract":
+        ch_mode()
+    else:
+        set_zero()
 
 
 def savefile():
     """Creates a Save As file dialog window and creates a new file
     reflecting the altered cue times"""
     global file2_path
-    file2_path = filedialog.asksaveasfilename(parent=mainframe,
-                                              initialdir=os.getcwd(),
-                                              title="Export Modified VTT "
-                                                    "File",
-                                              filetypes={("*.vtt", "*.vtt")})
+    print(file1_name)
+    if file1_name != "":
+        file2_path = filedialog.asksaveasfilename(parent=mainframe,
+                                                  initialdir=os.getcwd(),
+                                                  title="Export Modified VTT "
+                                                        "File",
+                                                  filetypes={("*.vtt",
+                                                              "*.vtt")})
 
-    write_newvtt(file1_path, file2_path)
+        write_newvtt(file1_path, file2_path)
+    else:
+        messagebox.showwarning(title="No file found",
+                               message="No .vtt file found to export. "
+                                       "Please open a file first.")
 
 
 def get_firstcueline():
     """Retrieves the first cue line found in the file
     :returns string - first cue line in 'hh:mm:ss.mmm --> hh:mm:ss.mmm'
     format"""
-    with open(file1_path, 'r', encoding='utf-8') as f1:
-        m = re.search(r"(\d\d:.*\.\d\d\d\s)", f1.read())
-        return m.group(1)
+    try:
+        with open(file1_path, 'r', encoding='utf-8') as f1:
+            m = re.search(r"(\d\d:.*\.\d\d\d\s)", f1.read())
+            return m.group(1)
+    except FileNotFoundError:
+        return '00:00:00.000 --> 00:00:00.000'
 
 
 def get_firstcue():
     """Retrieves the first cue found in the file
     :returns string - the first cue in '00:00:00.000' format"""
-    cue = get_firstcueline()
-    return cue[0:12]
+    try:
+        cue = get_firstcueline()
+        return cue[0:12]
+    except TypeError:
+        return '00:00:00.000'
 
 
 def ch_mode():
@@ -95,7 +114,6 @@ def ch_mode():
         set_delta()
     elif mode.get() == "zero":
         set_zero
-        pass
 
 
 def get_cuedelta(cue="00:00:00.000"):
@@ -141,8 +159,8 @@ def set_delta():
     global delta
 
     delta = timedelta(hours=int(hrspin.get()), minutes=int(minspin.get()),
-                      seconds=int(secspin.get()), milliseconds=int(
-            millispin.get()))
+                      seconds=int(secspin.get()),
+                      milliseconds=int(millispin.get()))
     if mode.get() == "add":
         newcue1 = get_cuedelta(get_firstcue()) + delta
         newcue2 = get_cuedelta(re.findall(r"(\d\d:\d\d:\d\d\.\d\d\d)",
@@ -155,6 +173,35 @@ def set_delta():
         raise OSError
 
     update_entry(newcue, get_cueline(newcue1, newcue2))
+
+
+def validate_hour(data):
+    print("validation entered" + data)
+    print(type(data))
+    print(delta_hr.get())
+
+    if data.isdigit():
+        if 0 < int(data) <= 23:
+            return True
+        else:
+            return False
+    elif data == "\b":
+        return True
+    else:
+        print("nope: " + data)
+        return False
+
+
+def validate_min():
+    print("validation entered")
+
+
+def validate_sec():
+    print("validation entered")
+
+
+def validate_milli():
+    print("validation entered")
 
 
 def update_entry(name=Entry(), string=""):
@@ -315,8 +362,8 @@ def write_newvtt(fin, fout):
     hr_regex = r"^(\d\d):(\d\d):(\d\d).(\d\d\d) --> (\d\d):(\d\d):(\d\d).(" \
                r"\d\d\d).*"
     min_regex = r"^(\d\d):(\d\d).(\d\d\d) --> (\d\d):(\d\d).(\d\d\d).*"
-    with open(fin, 'r', encoding='utf-8') as f1, open(fout, 'w',
-                                                      encoding='utf-8') as f2:
+    with open(fin, 'r', encoding='utf-8') as f1, \
+         open(fout, 'w', encoding='utf-8') as f2:
         for line in f1:
             if re.match(hr_regex, line):
                 f2.write(print_newcue(line))
@@ -374,24 +421,27 @@ zeroradio = ttk.Radiobutton(radioframe, text="Zero First Cue", variable=mode,
 modelabel = ttk.Label(radioframe, text="")
 
 # radioframe widget layout
-addradio.grid(column=0, row=0, padx=5, pady=1, sticky="w")
-subradio.grid(column=0, row=1, padx=5, pady=1, sticky="w")
-zeroradio.grid(column=0, row=2, padx=5, pady=1, sticky="w")
+zeroradio.grid(column=0, row=0, padx=5, pady=1, sticky="w")
+addradio.grid(column=0, row=1, padx=5, pady=1, sticky="w")
+subradio.grid(column=0, row=2, padx=5, pady=1, sticky="w")
 
 # timeframe widgets
 # spinboxes
+range_validation = root.register(validate_hour)
 hrspin = ttk.Spinbox(timeframe, textvariable=delta_hr, from_=0.0, to=23,
                      width=3, wrap=True, state=["readonly"], validate="key",
+                     validatecommand=(range_validation, '%P'),
                      command=set_delta)
 minspin = ttk.Spinbox(timeframe, textvariable=delta_min, from_=0.0, to=59,
                       width=3, wrap=True, state=["readonly"], validate="key",
-                      command=set_delta)
+                      validatecommand=validate_min, command=set_delta)
 secspin = ttk.Spinbox(timeframe, textvariable=delta_sec, from_=0.0, to=59,
                       width=3, wrap=True, state=["readonly"], validate="key",
-                      command=set_delta)
+                      validatecommand=validate_sec, command=set_delta)
 millispin = ttk.Spinbox(timeframe, textvariable=delta_milli, from_=0.0,
                         to=999, increment=50, width=4, wrap=True,
-                        state=["readonly"], validate="key", command=set_delta)
+                        state=["readonly"], validate="key",
+                        validatecommand=validate_milli, command=set_delta)
 # spinbox punctuation separators
 ttk.Label(timeframe, text=":").grid(column=1, row=1)
 ttk.Label(timeframe, text=":").grid(column=3, row=1)
@@ -400,7 +450,7 @@ ttk.Label(timeframe, text=".").grid(column=5, row=1)
 hrlabel = ttk.Label(timeframe, text="hrs")
 minlabel = ttk.Label(timeframe, text="mins")
 seclabel = ttk.Label(timeframe, text="secs")
-microlabel = ttk.Label(timeframe, text="micros")
+millilabel = ttk.Label(timeframe, text="milli")
 
 # timeframe widget layout
 # spinboxes
@@ -411,7 +461,7 @@ millispin.grid(column=6, row=1, padx=1, sticky="e")
 hrlabel.grid(column=0, row=2, sticky="we")
 minlabel.grid(column=2, row=2, sticky="we")
 seclabel.grid(column=4, row=2, sticky="we")
-microlabel.grid(column=6, row=2, sticky="we")
+millilabel.grid(column=6, row=2, sticky="we")
 
 # run
 root.mainloop()
