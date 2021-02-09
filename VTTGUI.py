@@ -10,24 +10,21 @@ import math
 # root frame
 root = Tk()
 root.title("VTT CueEdit")
-root.resizable(0, 0)    # root window cannot be resized
+root.resizable(0, 0)  # root window cannot be resized
 
 # global variables
 file1_path, file2_path = "", ""
-file1_name, file1_content = "", ""
+file1_name = ""
 mode = StringVar()
-mode.set("zero")
+mode.set("add")
 delta = timedelta(hours=0, minutes=0, seconds=0, milliseconds=0)
-
-
-# TODO Need to update delta on text entry into spinboxes
 
 
 def openfile():
     """Creates an Open File dialog window and sets the application
         variables to reflect the new file data."""
 
-    global file1_path, file1_name, file1_content
+    global file1_path, file1_name
     file1_path = filedialog.askopenfilename(parent=mainframe,
                                             initialdir=os.getcwd(),
                                             title="Open WEBVTT File",
@@ -35,7 +32,7 @@ def openfile():
     file1_name = re.sub(r".*\/", "", file1_path)
 
     newcue1 = get_cuedelta(get_firstcue())
-    newcue2 = get_cuedelta(re.findall(r"(\d\d:\d\d:\d\d\.\d\d\d)",
+    newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?.\d\d\d)",
                                       get_firstcueline())[1])
     update_entry(newcue, get_cueline(newcue1, newcue2))
     update_entry(filelabel, file1_name)
@@ -51,21 +48,26 @@ def savefile():
     """Creates a Save As file dialog window and creates a new file
     reflecting the altered cue times"""
     global file2_path, delta
-    print(file1_name)
+    print(file1_path)
     if mode.get() == "subtract" and delta > get_cuedelta(get_firstcue()):
         messagebox.showwarning(title="Negative Time",
                                message="Trying to set a negative time value")
     elif file1_name != "":
         default_file2 = file1_name[:len(file1_name) - 4] + "_edit.vtt"
         file2_path = filedialog.asksaveasfilename(parent=mainframe,
-                                                  initialdir=os.getcwd(),
+                                                  initialdir= \
+                                                       os.path.realpath(
+                                                          file1_path),
                                                   initialfile=default_file2,
                                                   title="Export Modified VTT "
                                                         "File",
                                                   filetypes={("*.vtt",
                                                               "*.vtt")})
-
-        write_newvtt(file1_path, file2_path)
+        print("file2: " + file2_path)
+        if not file2_path == '':
+            pass
+        else:
+            write_newvtt(file1_path, file2_path)
     else:
         messagebox.showwarning(title="No file found",
                                message="No .vtt file found to export. "
@@ -78,7 +80,7 @@ def get_firstcueline():
     format"""
     try:
         with open(file1_path, 'r', encoding='utf-8') as f1:
-            m = re.search(r"(\d\d:.*\.\d\d\d\s)", f1.read())
+            m = re.search(r"(\d\d:.*\.\d\d\d)", f1.read())
             return m.group(1)
     except FileNotFoundError:
         return '00:00:00.000 --> 00:00:00.000'
@@ -87,10 +89,21 @@ def get_firstcueline():
 def get_firstcue():
     """Retrieves the first cue found in the file
     :returns string - the first cue in '00:00:00.000' format"""
-    try:
-        cue = get_firstcueline()
-        return cue[0:12]
-    except TypeError:
+    print(len(get_firstcueline()))
+
+    if len(get_firstcueline()) == 34:
+        try:
+            cue = get_firstcueline()
+            return cue[0:12]
+        except TypeError:
+            return '00:00:00.000'
+    elif len(get_firstcueline()) == 23:
+        try:
+            cue = get_firstcueline()
+            return cue[0:9]
+        except TypeError:
+            return '00:00:00.000'
+    else:
         return '00:00:00.000'
 
 
@@ -118,11 +131,20 @@ def ch_mode():
 def get_cuedelta(cue="00:00:00.000"):
     """:param: cue - a string in 'hh:mm:ss.mmm' format
     :returns timedelta() """
-    hr = int(cue[0:2])
-    minute = int(cue[3:5])
-    sec = int(cue[6:8])
-    micro = int(cue[9:]) * 1000
-    return timedelta(hours=hr, minutes=minute, seconds=sec, microseconds=micro)
+    print(cue)
+    if len(cue) == 12:
+        hr = int(cue[0:2])
+        minute = int(cue[3:5])
+        sec = int(cue[6:8])
+        micro = int(cue[9:]) * 1000
+        return timedelta(hours=hr, minutes=minute, seconds=sec,
+                         microseconds=micro)
+    elif len(cue) == 9:
+        minute = int(cue[0:2])
+        sec = int(cue[3:5])
+        micro = int(cue[7:]) * 1000
+        return timedelta(hours=0, minutes=minute, seconds=sec,
+                         microseconds=micro)
 
 
 def get_cue(td=timedelta()):
@@ -170,12 +192,12 @@ def set_delta():
                       milliseconds=int(millispin.get()))
     if mode.get() == "add":
         newcue1 = get_cuedelta(get_firstcue()) + delta
-        newcue2 = get_cuedelta(re.findall(r"(\d\d:\d\d:\d\d\.\d\d\d)",
+        newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?\.\d\d\d)",
                                           get_firstcueline())[1]) + delta
         update_entry(newcue, get_cueline(newcue1, newcue2))
     elif mode.get() == "subtract" and delta <= get_cuedelta(get_firstcue()):
         newcue1 = get_cuedelta(get_firstcue()) - delta
-        newcue2 = get_cuedelta(re.findall(r"(\d\d:\d\d:\d\d\.\d\d\d)",
+        newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?.\d\d\d)",
                                           get_firstcueline())[1]) - delta
         update_entry(newcue, get_cueline(newcue1, newcue2))
     else:
@@ -280,7 +302,7 @@ def set_zero():
     delta = get_cuedelta(get_firstcue())
 
     newcue1 = get_cuedelta(get_firstcue()) - delta
-    newcue2 = get_cuedelta(re.findall(r"(\d\d:\d\d:\d\d\.\d\d\d)",
+    newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?\.\d\d\d)",
                                       get_firstcueline())[1]) - delta
     update_entry(newcue, get_cueline(newcue1, newcue2))
 
@@ -382,7 +404,7 @@ def write_newvtt(fin, fout):
                r"\d\d\d).*"
     min_regex = r"^(\d\d):(\d\d).(\d\d\d) --> (\d\d):(\d\d).(\d\d\d).*"
     with open(fin, 'r', encoding='utf-8') as f1, \
-         open(fout, 'w', encoding='utf-8') as f2:
+            open(fout, 'w', encoding='utf-8') as f2:
         for line in f1:
             if re.match(hr_regex, line):
                 f2.write(print_newcue(line))
