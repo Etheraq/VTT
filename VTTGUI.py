@@ -17,15 +17,7 @@ file1_path, file2_path = "", ""
 file1_name, file1_content = "", ""
 mode = StringVar()
 mode.set("zero")
-delta = timedelta()
-delta_hr = StringVar()
-delta_hr.set("00")
-delta_min = StringVar()
-delta_min.set("00")
-delta_sec = StringVar()
-delta_sec.set("00")
-delta_milli = StringVar()
-delta_milli.set("000")
+delta = timedelta(hours=0, minutes=0, seconds=0, milliseconds=0)
 
 
 # TODO Need to update delta on text entry into spinboxes
@@ -58,11 +50,16 @@ def openfile():
 def savefile():
     """Creates a Save As file dialog window and creates a new file
     reflecting the altered cue times"""
-    global file2_path
+    global file2_path, delta
     print(file1_name)
-    if file1_name != "":
+    if mode.get() == "subtract" and delta > get_cuedelta(get_firstcue()):
+        messagebox.showwarning(title="Negative Time",
+                               message="Trying to set a negative time value")
+    elif file1_name != "":
+        default_file2 = file1_name[:len(file1_name) - 4] + "_edit.vtt"
         file2_path = filedialog.asksaveasfilename(parent=mainframe,
                                                   initialdir=os.getcwd(),
+                                                  initialfile=default_file2,
                                                   title="Export Modified VTT "
                                                         "File",
                                                   filetypes={("*.vtt",
@@ -98,7 +95,9 @@ def get_firstcue():
 
 
 def ch_mode():
-    """reflects changes in the mode StrVar() from the radio dialog buttons"""
+    """reflects changes in the mode StrVar() from the radio dialog buttons
+    Sets the spinboxes to
+    """
 
     if mode.get() == "add":
         hrspin.state(["!readonly", "!disabled"])
@@ -144,7 +143,6 @@ def get_cue(td=timedelta()):
         ss = "0" + ss
     while len(mmm) < 3:
         mmm = "0" + mmm
-
     return hh + ":" + mm + ":" + ss + "." + mmm
 
 
@@ -155,8 +153,17 @@ def get_cueline(cue1=timedelta(), cue2=timedelta()):
 def set_delta():
     """Updates the delta variable and changes the newcue Entry box to reflect
     what the adjusted cue line will look like with the new delta changes."""
-
+    print("set_delta entered " + minspin.get())
     global delta
+
+    if hrspin.get() == '':
+        hrspin.set(0)
+    if minspin.get() == '':
+        minspin.set(0)
+    if secspin.get() == '':
+        secspin.set(0)
+    if millispin.get() == '':
+        millispin.set(0)
 
     delta = timedelta(hours=int(hrspin.get()), minutes=int(minspin.get()),
                       seconds=int(secspin.get()),
@@ -165,43 +172,90 @@ def set_delta():
         newcue1 = get_cuedelta(get_firstcue()) + delta
         newcue2 = get_cuedelta(re.findall(r"(\d\d:\d\d:\d\d\.\d\d\d)",
                                           get_firstcueline())[1]) + delta
+        update_entry(newcue, get_cueline(newcue1, newcue2))
     elif mode.get() == "subtract" and delta <= get_cuedelta(get_firstcue()):
         newcue1 = get_cuedelta(get_firstcue()) - delta
         newcue2 = get_cuedelta(re.findall(r"(\d\d:\d\d:\d\d\.\d\d\d)",
                                           get_firstcueline())[1]) - delta
+        update_entry(newcue, get_cueline(newcue1, newcue2))
     else:
-        raise OSError
-
-    update_entry(newcue, get_cueline(newcue1, newcue2))
+        update_entry(newcue, "***INVALID: Negative Time Value***")
 
 
 def validate_hour(data):
-    print("validation entered" + data)
-    print(type(data))
-    print(delta_hr.get())
+    print("validation entered, data: " + data)
 
     if data.isdigit():
         if 0 < int(data) <= 23:
+            hrspin.set(int(data))
+            hrspin.icursor("end")
+            set_delta()
             return True
         else:
             return False
     elif data == "\b":
+        return True
+    elif data == '':
         return True
     else:
         print("nope: " + data)
         return False
 
 
-def validate_min():
-    print("validation entered")
+def validate_min(data):
+    print("validation entered, data: " + data)
+    if data.isdigit():
+        if 0 < int(data) <= 60:
+            minspin.set(int(data))
+            minspin.icursor("end")
+            set_delta()
+            return True
+        else:
+            return False
+    elif data == "\b":
+        return True
+    elif data == '':
+        return True
+    else:
+        print("nope: " + data)
+        return False
 
 
-def validate_sec():
-    print("validation entered")
+def validate_sec(data):
+    print("validation entered, data: " + data)
+    if data.isdigit():
+        if 0 < int(data) <= 60:
+            secspin.set(int(data))
+            secspin.icursor("end")
+            set_delta()
+            return True
+        else:
+            return False
+    elif data == "\b":
+        return True
+    elif data == '':
+        return True
+    else:
+        print("nope: " + data)
+        return False
 
 
-def validate_milli():
-    print("validation entered")
+def validate_milli(data):
+    print("validation entered, data: " + data)
+    if data.isdigit():
+        if 0 < int(data) <= 999:
+            millispin.set(int(data))
+            millispin.icursor("end")
+            set_delta()
+            return True
+        else:
+            return False
+    elif data == "\b":
+        return True
+    elif data == '':
+        return True
+    else:
+        return False
 
 
 def update_entry(name=Entry(), string=""):
@@ -221,7 +275,7 @@ def set_zero():
     file and updates the spinners in the Time Adjustment window to
     become readonly and reflect the new time delta value
     """
-    global delta, delta_hr, delta_min, delta_sec, delta_milli
+    global delta
 
     delta = get_cuedelta(get_firstcue())
 
@@ -241,45 +295,10 @@ def set_zero():
     delta_milli = str(int(delta.microseconds / 1000))
     millispin.set(delta_milli)
 
-    if int(delta_hr) <= 9:
-        hrspin.state(["!readonly", "!disabled"])
-        hrspin.set("0" + delta_hr)
-        hrspin.state(["readonly", "disabled"])
-    else:
-        hrspin.state(["!readonly", "!disabled"])
-        hrspin.set(delta_hr)
-        hrspin.state(["readonly", "disabled"])
-
-    if int(delta_min) <= 9:
-        minspin.state(["!readonly", "!disabled"])
-        minspin.set("0" + delta_min)
-        minspin.state(["readonly", "disabled"])
-    else:
-        minspin.state(["!readonly", "!disabled"])
-        minspin.set(delta_min)
-        minspin.state(["readonly", "disabled"])
-
-    if int(delta_sec) <= 9:
-        secspin.state(["!readonly", "!disabled"])
-        secspin.set("0" + delta_sec)
-        secspin.state(["readonly", "disabled"])
-    else:
-        secspin.state(["!readonly", "!disabled"])
-        secspin.set(delta_sec)
-        secspin.state(["readonly", "disabled"])
-
-    if 10 <= int(delta_milli) < 100:
-        millispin.state(["!readonly", "!disabled"])
-        millispin.set("0" + delta_milli)
-        millispin.state(["readonly", "disabled"])
-    elif int(delta_milli) < 10:
-        millispin.state(["!readonly", "!disabled"])
-        millispin.set("00" + delta_milli)
-        millispin.state(["readonly", "disabled"])
-    else:
-        millispin.state(["!readonly", "!disabled"])
-        millispin.set(delta_milli)
-        millispin.state(["readonly", "disabled"])
+    hrspin.state(["readonly", "disabled"])
+    minspin.state(["readonly", "disabled"])
+    secspin.state(["readonly", "disabled"])
+    millispin.state(["readonly", "disabled"])
 
 
 def print_newcue(cueline):
@@ -427,21 +446,23 @@ subradio.grid(column=0, row=2, padx=5, pady=1, sticky="w")
 
 # timeframe widgets
 # spinboxes
-range_validation = root.register(validate_hour)
-hrspin = ttk.Spinbox(timeframe, textvariable=delta_hr, from_=0.0, to=23,
-                     width=3, wrap=True, state=["readonly"], validate="key",
-                     validatecommand=(range_validation, '%P'),
+range_hour = root.register(validate_hour)
+range_min = root.register(validate_min)
+range_sec = root.register(validate_sec)
+range_milli = root.register(validate_milli)
+hrspin = ttk.Spinbox(timeframe, from_=0.0, to=23, width=3, wrap=True,
+                     state=["readonly"], validate="key",
+                     validatecommand=(range_hour, '%P'),
                      command=set_delta)
-minspin = ttk.Spinbox(timeframe, textvariable=delta_min, from_=0.0, to=59,
-                      width=3, wrap=True, state=["readonly"], validate="key",
-                      validatecommand=validate_min, command=set_delta)
-secspin = ttk.Spinbox(timeframe, textvariable=delta_sec, from_=0.0, to=59,
-                      width=3, wrap=True, state=["readonly"], validate="key",
-                      validatecommand=validate_sec, command=set_delta)
-millispin = ttk.Spinbox(timeframe, textvariable=delta_milli, from_=0.0,
-                        to=999, increment=50, width=4, wrap=True,
-                        state=["readonly"], validate="key",
-                        validatecommand=validate_milli, command=set_delta)
+minspin = ttk.Spinbox(timeframe, from_=0.0, to=59, width=3, wrap=True,
+                      state=["readonly"], validate="key",
+                      validatecommand=(range_min, '%P'), command=set_delta)
+secspin = ttk.Spinbox(timeframe, from_=0.0, to=59, width=3, wrap=True,
+                      state=["readonly"], validate="key",
+                      validatecommand=(range_sec, '%P'), command=set_delta)
+millispin = ttk.Spinbox(timeframe, from_=0.0, to=999, increment=50, width=4,
+                        wrap=True, state=["readonly"], validate="key",
+                        validatecommand=(range_milli, '%P'), command=set_delta)
 # spinbox punctuation separators
 ttk.Label(timeframe, text=":").grid(column=1, row=1)
 ttk.Label(timeframe, text=":").grid(column=3, row=1)
