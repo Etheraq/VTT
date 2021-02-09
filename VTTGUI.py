@@ -91,7 +91,7 @@ def get_firstcue():
     :returns string - the first cue in '00:00:00.000' format"""
     print(len(get_firstcueline()))
 
-    if len(get_firstcueline()) == 34:
+    if len(get_firstcueline()) == 29:
         try:
             cue = get_firstcueline()
             return cue[0:12]
@@ -298,6 +298,9 @@ def set_zero():
     become readonly and reflect the new time delta value
     """
     global delta
+
+    print("enter set_zero+")
+    print(repr(delta))
 
     delta = get_cuedelta(get_firstcue())
 
