@@ -64,10 +64,7 @@ def savefile():
                                                   filetypes={("*.vtt",
                                                               "*.vtt")})
         print("file2: " + file2_path)
-        if not file2_path == '':
-            pass
-        else:
-            write_newvtt(file1_path, file2_path)
+        write_newvtt(file1_path, file2_path)
     else:
         messagebox.showwarning(title="No file found",
                                message="No .vtt file found to export. "
