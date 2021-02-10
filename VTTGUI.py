@@ -48,7 +48,7 @@ def savefile():
     """Creates a Save As file dialog window and creates a new file
     reflecting the altered cue times"""
     global file2_path, delta
-    print(file1_path)
+
     if mode.get() == "subtract" and delta > get_cuedelta(get_firstcue()):
         messagebox.showwarning(title="Negative Time",
                                message="Trying to set a negative time value")
@@ -63,7 +63,6 @@ def savefile():
                                                         "File",
                                                   filetypes={("*.vtt",
                                                               "*.vtt")})
-        print("file2: " + file2_path)
         write_newvtt(file1_path, file2_path)
     else:
         messagebox.showwarning(title="No file found",
@@ -86,7 +85,6 @@ def get_firstcueline():
 def get_firstcue():
     """Retrieves the first cue found in the file
     :returns string - the first cue in '00:00:00.000' format"""
-    print(len(get_firstcueline()))
 
     if len(get_firstcueline()) == 29:
         try:
@@ -106,7 +104,7 @@ def get_firstcue():
 
 def ch_mode():
     """reflects changes in the mode StrVar() from the radio dialog buttons
-    Sets the spinboxes to
+    Sets the spinboxes to be enabled and writeable when in add / subtract mode
     """
 
     if mode.get() == "add":
@@ -128,7 +126,6 @@ def ch_mode():
 def get_cuedelta(cue="00:00:00.000"):
     """:param: cue - a string in 'hh:mm:ss.mmm' format
     :returns timedelta() """
-    print(cue)
     if len(cue) == 12:
         hr = int(cue[0:2])
         minute = int(cue[3:5])
@@ -172,7 +169,6 @@ def get_cueline(cue1=timedelta(), cue2=timedelta()):
 def set_delta():
     """Updates the delta variable and changes the newcue Entry box to reflect
     what the adjusted cue line will look like with the new delta changes."""
-    print("set_delta entered " + minspin.get())
     global delta
 
     if hrspin.get() == '':
@@ -202,8 +198,9 @@ def set_delta():
 
 
 def validate_hour(data):
-    print("validation entered, data: " + data)
-
+    """Validation methods to ensure data from the hrspin spinbox is valid.
+    Disallows entry if not a hour value between 0 & 23 or backspace
+    """
     if data.isdigit():
         if 0 < int(data) <= 23:
             hrspin.set(int(data))
@@ -214,15 +211,11 @@ def validate_hour(data):
             return False
     elif data == "\b":
         return True
-    elif data == '':
-        return True
     else:
-        print("nope: " + data)
         return False
 
 
-def validate_min(data):
-    print("validation entered, data: " + data)
+def validate_min(data):     # validates minute spinbox
     if data.isdigit():
         if 0 < int(data) <= 60:
             minspin.set(int(data))
@@ -236,12 +229,10 @@ def validate_min(data):
     elif data == '':
         return True
     else:
-        print("nope: " + data)
         return False
 
 
-def validate_sec(data):
-    print("validation entered, data: " + data)
+def validate_sec(data):     # validates second spinbox
     if data.isdigit():
         if 0 < int(data) <= 60:
             secspin.set(int(data))
@@ -255,12 +246,10 @@ def validate_sec(data):
     elif data == '':
         return True
     else:
-        print("nope: " + data)
         return False
 
 
-def validate_milli(data):
-    print("validation entered, data: " + data)
+def validate_milli(data):       # validates millisecond spinbox
     if data.isdigit():
         if 0 < int(data) <= 999:
             millispin.set(int(data))
@@ -296,11 +285,7 @@ def set_zero():
     """
     global delta
 
-    print("enter set_zero+")
-    print(repr(delta))
-
     delta = get_cuedelta(get_firstcue())
-
     newcue1 = get_cuedelta(get_firstcue()) - delta
     newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?\.\d\d\d)",
                                       get_firstcueline())[1]) - delta
@@ -324,6 +309,12 @@ def set_zero():
 
 
 def print_newcue(cueline):
+    """Used in writing the new file. and prints a new cueline with the
+    new time value.
+    :param a line string from the original file that includes a cue
+    :returns string line with the new cue values
+    """
+    print("reading - " + cueline)
     hr_regex = r"^(\d\d):(\d\d):(\d\d).(\d\d\d) --> (\d\d):(\d\d):(\d\d).(" \
                r"\d\d\d).*"
     min_regex = r"^(\d\d):(\d\d).(\d\d\d) --> (\d\d):(\d\d).(\d\d\d).*"
@@ -355,12 +346,9 @@ def print_newcue(cueline):
             cue_start -= delta
             cue_end -= delta
         else:
-            print(mode)
-            print(repr(cue_start))
-            print(repr(cue_end))
-            print(repr(delta))
             raise OSError
-
+        print(cue_start.isoformat(timespec='milliseconds')[11:] + " --> " \
+               + cue_end.isoformat(timespec='milliseconds')[11:] + cueline[29:])
         return cue_start.isoformat(timespec='milliseconds')[11:] + " --> " \
                + cue_end.isoformat(timespec='milliseconds')[11:] + cueline[29:]
 
@@ -396,13 +384,17 @@ def print_newcue(cueline):
                + " --> " + cue_end.isoformat(timespec='milliseconds')[14:] \
                + cueline[23:]
     else:
-        raise OSError  # TODO Proper error handling
+        raise OSError
 
 
 def write_newvtt(fin, fout):
-    hr_regex = r"^(\d\d):(\d\d):(\d\d).(\d\d\d) --> (\d\d):(\d\d):(\d\d).(" \
-               r"\d\d\d).*"
-    min_regex = r"^(\d\d):(\d\d).(\d\d\d) --> (\d\d):(\d\d).(\d\d\d).*"
+    """Reads through the old file and writes into the new file with the
+    altered cue values."""
+    print("writing: " + fout + " from: " + fin)
+    # regex strings for locating cues within each line
+    hr_regex = r"^\d\d:\d\d:\d\d.\d\d\d --> \d\d:\d\d:\d\d.\d\d\d.*"
+    min_regex = r"^\d\d:\d\d.\d\d\d --> \d\d:\d\d.\d\d\d.*"
+
     with open(fin, 'r', encoding='utf-8') as f1, \
             open(fout, 'w', encoding='utf-8') as f2:
         for line in f1:
@@ -411,6 +403,7 @@ def write_newvtt(fin, fout):
             elif re.match(min_regex, line):
                 f2.write(print_newcue(line))
             else:
+                print("writing: " + line)
                 f2.write(line)
 
 
