@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from tkinter import *
 from tkinter import ttk, filedialog, messagebox
-# from tkinter import filedialog
 from datetime import datetime, date, time, timedelta
 import os
 import re
@@ -11,6 +10,7 @@ import math
 root = Tk()
 root.title("VTT CueEdit")
 root.resizable(0, 0)  # root window cannot be resized
+root.iconphoto(False, tk.PhotoImage(file=''))
 
 # global variables
 file1_path, file2_path = "", ""
@@ -33,8 +33,6 @@ def openfile():
                                             title="Open WEBVTT File",
                                             filetypes={("*.vtt", "*.vtt")})
     file1_name = re.sub(r".*\/", "", file1_path)
-
-
 
     newcue1 = get_cuedelta(get_firstcue())
     newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?.\d\d\d)",
