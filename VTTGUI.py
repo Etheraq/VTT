@@ -119,8 +119,6 @@ def ch_mode():
         secspin.state(["!readonly", "!disabled"])
         millispin.state(["!readonly", "!disabled"])
         set_delta()
-    elif mode.get() == "zero":
-        set_zero
 
 
 def get_cuedelta(cue="00:00:00.000"):
