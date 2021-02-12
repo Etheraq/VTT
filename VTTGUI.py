@@ -17,7 +17,10 @@ file1_path, file2_path = "", ""
 file1_name = ""
 mode = StringVar()
 mode.set("add")
+zero = IntVar()
+zero.set(0)
 delta = timedelta(hours=0, minutes=0, seconds=0, milliseconds=0)
+zero_delta = timedelta(hours=0, minutes=0, seconds=0, milliseconds=0)
 
 
 def openfile():
@@ -31,17 +34,30 @@ def openfile():
                                             filetypes={("*.vtt", "*.vtt")})
     file1_name = re.sub(r".*\/", "", file1_path)
 
+
+
     newcue1 = get_cuedelta(get_firstcue())
     newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?.\d\d\d)",
                                       get_firstcueline())[1])
     update_entry(newcue, get_cueline(newcue1, newcue2))
     update_entry(filelabel, file1_name)
     update_entry(oldcue, get_firstcueline())
+    enable_widgets()
 
-    if mode.get() == "add" or mode.get() == "subtract":
-        ch_mode()
-    else:
-        set_zero()
+
+def enable_widgets():
+    zerocheck.state(["!disabled"])
+    addradio.state(["!disabled"])
+    subradio.state(["!disabled"])
+    hrspin.state(["!readonly"])
+    minspin.state(["!readonly"])
+    secspin.state(["!readonly"])
+    millispin.state(["!readonly"])
+    hrspin.set(0)
+    minspin.set(0)
+    secspin.set(0)
+    millispin.set(0)
+    mode.set("add")
 
 
 def savefile():
@@ -49,14 +65,11 @@ def savefile():
     reflecting the altered cue times"""
     global file2_path, delta
 
-    if mode.get() == "subtract" and delta > get_cuedelta(get_firstcue()):
-        messagebox.showwarning(title="Negative Time",
-                               message="Trying to set a negative time value")
-    elif file1_name != "":
+    if file1_name != "":
         default_file2 = file1_name[:len(file1_name) - 4] + "_edit.vtt"
         file2_path = filedialog.asksaveasfilename(parent=mainframe,
                                                   initialdir= \
-                                                       os.path.realpath(
+                                                      os.path.realpath(
                                                           file1_path),
                                                   initialfile=default_file2,
                                                   title="Export Modified VTT "
@@ -64,6 +77,9 @@ def savefile():
                                                   filetypes={("*.vtt",
                                                               "*.vtt")})
         write_newvtt(file1_path, file2_path)
+    elif mode.get() == "subtract" and delta > get_cuedelta(get_firstcue()):
+        messagebox.showwarning(title="Negative Time",
+                               message="Trying to set a negative time value")
     else:
         messagebox.showwarning(title="No file found",
                                message="No .vtt file found to export. "
@@ -102,27 +118,6 @@ def get_firstcue():
         return '00:00:00.000'
 
 
-def ch_mode():
-    """reflects changes in the mode StrVar() from the radio dialog buttons
-    Sets the spinboxes to be enabled and writeable when in add / subtract mode
-    """
-
-    if mode.get() == "add":
-        hrspin.state(["!readonly", "!disabled"])
-        minspin.state(["!readonly", "!disabled"])
-        secspin.state(["!readonly", "!disabled"])
-        millispin.state(["!readonly", "!disabled"])
-        set_delta()
-    elif mode.get() == "subtract":
-        hrspin.state(["!readonly", "!disabled"])
-        minspin.state(["!readonly", "!disabled"])
-        secspin.state(["!readonly", "!disabled"])
-        millispin.state(["!readonly", "!disabled"])
-        set_delta()
-    elif mode.get() == "zero":
-        set_zero
-
-
 def get_cuedelta(cue="00:00:00.000"):
     """:param: cue - a string in 'hh:mm:ss.mmm' format
     :returns timedelta() """
@@ -142,8 +137,9 @@ def get_cuedelta(cue="00:00:00.000"):
 
 
 def get_cue(td=timedelta()):
-    """:param td - a timedelta() object
-    :returns a string in 'hh:mm:ss.mmm' format"""
+    """
+    :param td - a timedelta() object
+    :return a string in 'hh:mm:ss.mmm' format"""
     hh = str(math.floor(td.seconds / 3600))
     remaining = td.seconds - int(hh) * 3600
     mm = str(math.floor(remaining / 60))
@@ -166,11 +162,9 @@ def get_cueline(cue1=timedelta(), cue2=timedelta()):
     return get_cue(cue1) + " --> " + get_cue(cue2)
 
 
-def set_delta():
-    """Updates the delta variable and changes the newcue Entry box to reflect
-    what the adjusted cue line will look like with the new delta changes."""
-    global delta
-
+def update_cueline():
+    """Updates the newcue Entry box to reflect what the adjusted cue line
+    will look like with the new delta changes."""
     if hrspin.get() == '':
         hrspin.set(0)
     if minspin.get() == '':
@@ -180,21 +174,32 @@ def set_delta():
     if millispin.get() == '':
         millispin.set(0)
 
-    delta = timedelta(hours=int(hrspin.get()), minutes=int(minspin.get()),
-                      seconds=int(secspin.get()),
-                      milliseconds=int(millispin.get()))
-    if mode.get() == "add":
-        newcue1 = get_cuedelta(get_firstcue()) + delta
+    new_delta = timedelta(hours=int(hrspin.get()), minutes=int(minspin.get()),
+                          seconds=int(secspin.get()),
+                          milliseconds=int(millispin.get()))
+
+    if zero.get() == 0:
+        if mode.get() == "add":
+            newcue1 = get_cuedelta(get_firstcue()) + new_delta
+            newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?\.\d\d\d)",
+                                              get_firstcueline())[1]) + \
+                new_delta
+            update_entry(newcue, get_cueline(newcue1, newcue2))
+        elif mode.get() == "subtract" and new_delta <= get_cuedelta(
+                get_firstcue()):
+            newcue1 = get_cuedelta(get_firstcue()) - new_delta
+            newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?.\d\d\d)",
+                                              get_firstcueline())[1]) - \
+                new_delta
+            update_entry(newcue, get_cueline(newcue1, newcue2))
+        else:
+            update_entry(newcue, "***INVALID: Negative Time Value***")
+    elif zero.get() == 1:
+        newcue1 = get_cuedelta(get_firstcue()) - zero_delta + new_delta
         newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?\.\d\d\d)",
-                                          get_firstcueline())[1]) + delta
+                                          get_firstcueline())[1]) - \
+            zero_delta + new_delta
         update_entry(newcue, get_cueline(newcue1, newcue2))
-    elif mode.get() == "subtract" and delta <= get_cuedelta(get_firstcue()):
-        newcue1 = get_cuedelta(get_firstcue()) - delta
-        newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?.\d\d\d)",
-                                          get_firstcueline())[1]) - delta
-        update_entry(newcue, get_cueline(newcue1, newcue2))
-    else:
-        update_entry(newcue, "***INVALID: Negative Time Value***")
 
 
 def validate_hour(data):
@@ -205,7 +210,7 @@ def validate_hour(data):
         if 0 < int(data) <= 23:
             hrspin.set(int(data))
             hrspin.icursor("end")
-            set_delta()
+            update_cueline()
             return True
         else:
             return False
@@ -215,12 +220,12 @@ def validate_hour(data):
         return False
 
 
-def validate_min(data):     # validates minute spinbox
+def validate_min(data):  # validates minute spinbox
     if data.isdigit():
         if 0 < int(data) <= 60:
             minspin.set(int(data))
             minspin.icursor("end")
-            set_delta()
+            update_cueline()
             return True
         else:
             return False
@@ -232,12 +237,12 @@ def validate_min(data):     # validates minute spinbox
         return False
 
 
-def validate_sec(data):     # validates second spinbox
+def validate_sec(data):  # validates second spinbox
     if data.isdigit():
         if 0 < int(data) <= 60:
             secspin.set(int(data))
             secspin.icursor("end")
-            set_delta()
+            update_cueline()
             return True
         else:
             return False
@@ -249,12 +254,12 @@ def validate_sec(data):     # validates second spinbox
         return False
 
 
-def validate_milli(data):       # validates millisecond spinbox
+def validate_milli(data):  # validates millisecond spinbox
     if data.isdigit():
         if 0 < int(data) <= 999:
             millispin.set(int(data))
             millispin.icursor("end")
-            set_delta()
+            update_cueline()
             return True
         else:
             return False
@@ -278,34 +283,39 @@ def update_entry(name=Entry(), string=""):
 
 
 def set_zero():
-    """Called when the zeroradio buttion is selected.
-    Sets the time delta to equal the time of the first cue in the
-    file and updates the spinners in the Time Adjustment window to
-    become readonly and reflect the new time delta value
+    """Called when the zerocheck checkbox is selected.
+    Sets the time zero_delta to equal the time of the first cue in the
+    file, sets the displayed cueline to zero and disables the subtract time
+    radio button
     """
+    global zero_delta
+
+    if zero.get() == 1:
+        zero_delta = get_cuedelta(get_firstcue())
+        newcue1 = get_cuedelta(get_firstcue()) - zero_delta
+        newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?\.\d\d\d)",
+                                          get_firstcueline())[1]) - zero_delta
+        update_entry(newcue, get_cueline(newcue1, newcue2))
+        hrspin.set(0)
+        minspin.set(0)
+        secspin.set(0)
+        millispin.set(0)
+        subradio.config(state=["disabled"])
+        mode.set("add")
+    elif zero.get() == 0:
+        zero_delta = timedelta(0)
+        newcue1 = get_cuedelta(get_firstcue())
+        newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?\.\d\d\d)",
+                                          get_firstcueline())[1])
+        update_entry(newcue, get_cueline(newcue1, newcue2))
+        subradio.config(state=["!disabled"])
+
+
+def set_delta():
     global delta
-
-    delta = get_cuedelta(get_firstcue())
-    newcue1 = get_cuedelta(get_firstcue()) - delta
-    newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?\.\d\d\d)",
-                                      get_firstcueline())[1]) - delta
-    update_entry(newcue, get_cueline(newcue1, newcue2))
-
-    delta_hr = str(math.floor(delta.seconds / 3600))
-    hrspin.set(delta_hr)
-    seconds = delta.seconds - int(delta_hr * 3600)
-    delta_min = str(math.floor(seconds / 60))
-    minspin.set(delta_min)
-    seconds -= int(delta_min * 60)
-    delta_sec = str(seconds)
-    secspin.set(delta_sec)
-    delta_milli = str(int(delta.microseconds / 1000))
-    millispin.set(delta_milli)
-
-    hrspin.state(["readonly", "disabled"])
-    minspin.state(["readonly", "disabled"])
-    secspin.state(["readonly", "disabled"])
-    millispin.state(["readonly", "disabled"])
+    delta = timedelta(hours=int(hrspin.get()), minutes=int(minspin.get()),
+                      seconds=int(secspin.get()),
+                      milliseconds=int(millispin.get()))
 
 
 def print_newcue(cueline):
@@ -314,10 +324,10 @@ def print_newcue(cueline):
     :param a line string from the original file that includes a cue
     :returns string line with the new cue values
     """
-    print("reading - " + cueline)
     hr_regex = r"^(\d\d):(\d\d):(\d\d).(\d\d\d) --> (\d\d):(\d\d):(\d\d).(" \
                r"\d\d\d).*"
     min_regex = r"^(\d\d):(\d\d).(\d\d\d) --> (\d\d):(\d\d).(\d\d\d).*"
+    set_delta()
     # if cues are in format 00:00:00.000
     if m := re.match(hr_regex, cueline):
         # search cueline for start & end cues and group relevant time values
@@ -340,15 +350,17 @@ def print_newcue(cueline):
                                         microsecond=ms2))
         # adjusting the cue time by delta
         if mode.get() == "add":
-            cue_start += delta
-            cue_end += delta
-        elif mode.get() == "subtract" or mode.get() == "zero":
+            if zero.get() == 0:
+                cue_start += delta
+                cue_end += delta
+            elif zero.get() == 1:
+                cue_start = cue_start - zero_delta + delta
+                cue_end = cue_end - zero_delta + delta
+        elif mode.get() == "subtract":
             cue_start -= delta
             cue_end -= delta
         else:
             raise OSError
-        print(cue_start.isoformat(timespec='milliseconds')[11:] + " --> " \
-               + cue_end.isoformat(timespec='milliseconds')[11:] + cueline[29:])
         return cue_start.isoformat(timespec='milliseconds')[11:] + " --> " \
                + cue_end.isoformat(timespec='milliseconds')[11:] + cueline[29:]
 
@@ -377,11 +389,21 @@ def print_newcue(cueline):
                                                           m.group(5)),
                                                       microsecond=ms2))
         # adjusting the cue time by delta
-        cue_start += delta
-        cue_end += delta
+        if mode.get() == "add":
+            if zero == 0:
+                cue_start += delta
+                cue_end += delta
+            elif zero == 1:
+                cue_start = cue_start - zero_delta + delta
+                cue_end = cue_end - zero_delta + delta
+        elif mode.get() == "subtract":
+            cue_start -= delta
+            cue_end -= delta
+        else:
+            raise OSError
 
-        return cue_start.isoformat(timespec='milliseconds')[14:] \
-               + " --> " + cue_end.isoformat(timespec='milliseconds')[14:] \
+        return cue_start.isoformat(timespec='milliseconds')[8:] \
+               + " --> " + cue_end.isoformat(timespec='milliseconds')[8:] \
                + cueline[23:]
     else:
         raise OSError
@@ -390,7 +412,6 @@ def print_newcue(cueline):
 def write_newvtt(fin, fout):
     """Reads through the old file and writes into the new file with the
     altered cue values."""
-    print("writing: " + fout + " from: " + fin)
     # regex strings for locating cues within each line
     hr_regex = r"^\d\d:\d\d:\d\d.\d\d\d --> \d\d:\d\d:\d\d.\d\d\d.*"
     min_regex = r"^\d\d:\d\d.\d\d\d --> \d\d:\d\d.\d\d\d.*"
@@ -403,7 +424,6 @@ def write_newvtt(fin, fout):
             elif re.match(min_regex, line):
                 f2.write(print_newcue(line))
             else:
-                print("writing: " + line)
                 f2.write(line)
 
 
@@ -447,15 +467,17 @@ newcue.grid(column=1, row=5, columnspan=4, sticky="we")
 
 # radioframe widgets
 addradio = ttk.Radiobutton(radioframe, text="Add Time", variable=mode,
-                           value="add", command=ch_mode)
+                           value="add", state=["disabled"])
 subradio = ttk.Radiobutton(radioframe, text="Subtract Time", variable=mode,
-                           value="subtract", command=ch_mode)
-zeroradio = ttk.Radiobutton(radioframe, text="Zero First Cue", variable=mode,
-                            value="zero", command=set_zero)
+                           value="subtract", state=["disabled"])
+
+# checkbox widget
+zerocheck = ttk.Checkbutton(radioframe, text="Zero First Cue", variable=zero,
+                            command=set_zero, state=["disabled"])
 modelabel = ttk.Label(radioframe, text="")
 
 # radioframe widget layout
-zeroradio.grid(column=0, row=0, padx=5, pady=1, sticky="w")
+zerocheck.grid(column=0, row=0, padx=5, pady=1, sticky="w")
 addradio.grid(column=0, row=1, padx=5, pady=1, sticky="w")
 subradio.grid(column=0, row=2, padx=5, pady=1, sticky="w")
 
@@ -466,18 +488,18 @@ range_min = root.register(validate_min)
 range_sec = root.register(validate_sec)
 range_milli = root.register(validate_milli)
 hrspin = ttk.Spinbox(timeframe, from_=0.0, to=23, width=3, wrap=True,
-                     state=["readonly"], validate="key",
-                     validatecommand=(range_hour, '%P'),
-                     command=set_delta)
+                     validate="key", validatecommand=(range_hour, '%P'),
+                     state=["readonly"], command=update_cueline)
 minspin = ttk.Spinbox(timeframe, from_=0.0, to=59, width=3, wrap=True,
-                      state=["readonly"], validate="key",
-                      validatecommand=(range_min, '%P'), command=set_delta)
+                      validate="key", validatecommand=(range_min, '%P'),
+                      state=["readonly"], command=update_cueline)
 secspin = ttk.Spinbox(timeframe, from_=0.0, to=59, width=3, wrap=True,
-                      state=["readonly"], validate="key",
-                      validatecommand=(range_sec, '%P'), command=set_delta)
-millispin = ttk.Spinbox(timeframe, from_=0.0, to=999, increment=50, width=4,
-                        wrap=True, state=["readonly"], validate="key",
-                        validatecommand=(range_milli, '%P'), command=set_delta)
+                      validate="key", validatecommand=(range_sec, '%P'),
+                      state=["readonly"], command=update_cueline)
+millispin = ttk.Spinbox(timeframe, from_=0.0, to=999, width=4, wrap=True,
+                        increment=50,
+                        validate="key", validatecommand=(range_milli, '%P'),
+                        state=["readonly"], command=update_cueline)
 # spinbox punctuation separators
 ttk.Label(timeframe, text=":").grid(column=1, row=1)
 ttk.Label(timeframe, text=":").grid(column=3, row=1)
