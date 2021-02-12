@@ -34,8 +34,6 @@ def openfile():
                                             filetypes={("*.vtt", "*.vtt")})
     file1_name = re.sub(r".*\/", "", file1_path)
 
-
-
     newcue1 = get_cuedelta(get_firstcue())
     newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?.\d\d\d)",
                                       get_firstcueline())[1])
