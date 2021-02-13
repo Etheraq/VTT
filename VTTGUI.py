@@ -10,7 +10,7 @@ import math
 root = Tk()
 root.title("VTT CueEdit")
 root.resizable(0, 0)  # root window cannot be resized
-root.iconphoto(False, tk.PhotoImage(file=''))
+# root.iconphoto(False, tk.PhotoImage(file=''))
 
 # global variables
 file1_path, file2_path = "", ""
