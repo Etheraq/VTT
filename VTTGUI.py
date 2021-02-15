@@ -2,6 +2,8 @@
 from tkinter import *
 from tkinter import ttk, filedialog, messagebox
 from datetime import datetime, date, time, timedelta
+import zlib, base64
+import tempfile
 import os
 import re
 import math
@@ -10,7 +12,13 @@ import math
 root = Tk()
 root.title("VTT CueEdit")
 root.resizable(0, 0)  # root window cannot be resized
-# root.iconphoto(False, tk.PhotoImage(file=''))
+ICON=zlib.decompress(base64.b64decode('eJxjYGAEQgEBBiDJwZDBy'
+'sAgxsDAoAHEQCEGBQaIOAg4sDIgACMUj4JRMApGwQgF/ykEAFXxQRc='))
+_, ICON_PATH = tempfile.mkstemp()
+with open(ICON_PATH, 'wb') as icon_file:
+    icon_file.write(ICON)
+
+root.iconbitmap(default=ICON_PATH)
 
 # global variables
 file1_path, file2_path = "", ""
