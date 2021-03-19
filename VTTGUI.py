@@ -12,8 +12,9 @@ import math
 root = Tk()
 root.title("VTT CueEdit")
 root.resizable(0, 0)  # root window cannot be resized
-ICON=zlib.decompress(base64.b64decode('eJxjYGAEQgEBBiDJwZDBy'
-'sAgxsDAoAHEQCEGBQaIOAg4sDIgACMUj4JRMApGwQgF/ykEAFXxQRc='))
+ICON = zlib.decompress(base64.b64decode('eJxjYGAEQgEBBiDJwZDBy'
+                                        'sAgxsDAoAHEQCEGBQaIOAg4sDIgACMUj4J'
+                                        'RMApGwQgF/ykEAFXxQRc='))
 _, ICON_PATH = tempfile.mkstemp()
 with open(ICON_PATH, 'wb') as icon_file:
     icon_file.write(ICON)
@@ -29,6 +30,8 @@ zero = IntVar()
 zero.set(0)
 delta = timedelta(hours=0, minutes=0, seconds=0, milliseconds=0)
 zero_delta = timedelta(hours=0, minutes=0, seconds=0, milliseconds=0)
+seq_check = IntVar()
+seq_check.set(0)
 
 
 def openfile():
@@ -63,6 +66,8 @@ def enable_widgets():
     minspin.set(0)
     secspin.set(0)
     millispin.set(0)
+    seqspin.set(1)
+    seq_check.set(0)
     mode.set("add")
 
 
@@ -189,14 +194,14 @@ def update_cueline():
             newcue1 = get_cuedelta(get_firstcue()) + new_delta
             newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?\.\d\d\d)",
                                               get_firstcueline())[1]) + \
-                new_delta
+                      new_delta
             update_entry(newcue, get_cueline(newcue1, newcue2))
         elif mode.get() == "subtract" and new_delta <= get_cuedelta(
                 get_firstcue()):
             newcue1 = get_cuedelta(get_firstcue()) - new_delta
             newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?.\d\d\d)",
                                               get_firstcueline())[1]) - \
-                new_delta
+                      new_delta
             update_entry(newcue, get_cueline(newcue1, newcue2))
         else:
             update_entry(newcue, "***INVALID: Negative Time Value***")
@@ -204,7 +209,7 @@ def update_cueline():
         newcue1 = get_cuedelta(get_firstcue()) - zero_delta + new_delta
         newcue2 = get_cuedelta(re.findall(r"(\d\d:.*?\.\d\d\d)",
                                           get_firstcueline())[1]) - \
-            zero_delta + new_delta
+                  zero_delta + new_delta
         update_entry(newcue, get_cueline(newcue1, newcue2))
 
 
@@ -324,6 +329,15 @@ def set_delta():
                       milliseconds=int(millispin.get()))
 
 
+def set_seq():
+    print(seq_check.get())
+    if seq_check.get() == 0:
+        seqspin.state(["disabled"])
+    else:
+        seqspin.state(["!disabled"])
+        seqspin.set(1)
+
+
 def print_newcue(cueline):
     """Used in writing the new file. and prints a new cueline with the
     new time value.
@@ -415,6 +429,13 @@ def print_newcue(cueline):
         raise OSError
 
 
+def peek_line(f):
+    pos = f.tell()
+    line = f.readline()
+    f.seek(pos)
+    return line
+
+
 def write_newvtt(fin, fout):
     """Reads through the old file and writes into the new file with the
     altered cue values."""
@@ -422,15 +443,36 @@ def write_newvtt(fin, fout):
     hr_regex = r"^\d\d:\d\d:\d\d.\d\d\d --> \d\d:\d\d:\d\d.\d\d\d.*"
     min_regex = r"^\d\d:\d\d.\d\d\d --> \d\d:\d\d.\d\d\d.*"
 
+    sequence = int(seqspin.get())
+
     with open(fin, 'r', encoding='utf-8') as f1, \
             open(fout, 'w', encoding='utf-8') as f2:
-        for line in f1:
-            if re.match(hr_regex, line):
-                f2.write(print_newcue(line))
-            elif re.match(min_regex, line):
-                f2.write(print_newcue(line))
+        line = f1.readline()
+        while line:
+            if seq_check.get() == 0:
+                if re.match(hr_regex, line):
+                    f2.write(print_newcue(line))
+                elif re.match(min_regex, line):
+                    f2.write(print_newcue(line))
+                else:
+                    f2.write(line)
             else:
-                f2.write(line)
+                if re.match(hr_regex, peek_line(f1)) or \
+                        re.match(min_regex, peek_line(f1)):
+                    if line == "\n":
+                        f2.write(line)
+                        f2.write(str(sequence) + "\n")
+                        print(str(sequence))
+                        sequence += 1
+                    else:
+                        f2.write(str(sequence) + "\n")
+                        sequence += 1
+                else:
+                    if re.match(hr_regex, line) or re.match(min_regex, line):
+                        f2.write(print_newcue(line))
+                    else:
+                        f2.write(line)
+            line = f1.readline()
 
 
 # Frames
@@ -438,13 +480,16 @@ mainframe = ttk.Frame(root, padding="5 5 5 5")
 radioframe = ttk.Frame(mainframe, padding="5 5 5 5")
 timeframe = ttk.LabelFrame(mainframe, padding="5 5 5 5", text="Time "
                                                               "Adjustment")
+sequenceframe = ttk.LabelFrame(mainframe, padding="5 0 5 0",
+                               text="Sequencing")
 
 # Frame layout
 root.columnconfigure(0, weight=1)
 root.rowconfigure(0, weight=1)
 mainframe.grid(row=0, sticky="nsew")
-radioframe.grid(column=0, row=1, rowspan=2, columnspan=2, sticky="nw")
-timeframe.grid(column=2, row=2, sticky="e")
+radioframe.grid(column=0, row=2, rowspan=2, columnspan=2, sticky="nw")
+timeframe.grid(column=2, row=3, sticky="e")
+sequenceframe.grid(column=0, row=8, columnspan=3, sticky="w")
 
 # mainframe widgets
 open_button = ttk.Button(mainframe, text="Open File", command=openfile)
@@ -463,8 +508,8 @@ newcue.state(["readonly"])
 
 # mainframe widget layout
 open_button.grid(column=0, row=0, padx=10, pady=5, sticky="w")
-export_button.grid(column=2, row=8, padx=5, pady=5, sticky="e")
 filelabel.grid(column=1, row=0, columnspan=2, padx=5, sticky="we")
+export_button.grid(column=2, row=8, padx=5, pady=15, sticky="e")
 # cue viewer textboxes
 oldcuelabel.grid(column=0, row=4, pady=1, sticky="e")
 oldcue.grid(column=1, row=4, columnspan=4, pady=1, sticky="we")
@@ -526,6 +571,24 @@ hrlabel.grid(column=0, row=2, sticky="we")
 minlabel.grid(column=2, row=2, sticky="we")
 seclabel.grid(column=4, row=2, sticky="we")
 millilabel.grid(column=6, row=2, sticky="we")
+
+# sequenceframe widgets
+
+seqspinlabel = ttk.Label(sequenceframe, text="First #: ")
+seqchecklabel = ttk.Label(sequenceframe, text="On / Off")
+seqcheck = ttk.Checkbutton(sequenceframe, variable=seq_check,
+                           command=set_seq)
+seqspin = ttk.Spinbox(sequenceframe, from_=0, to=999, wrap=True, width=3,
+                      state=["disabled"])
+spacer = ttk.Label(sequenceframe, text="             ")
+
+# sequenceframe widget layout
+
+seqspinlabel.grid(column=3, row=0, sticky="e")
+seqspin.grid(column=4, row=0, sticky="e")
+seqcheck.grid(column=0, row=0, sticky="w")
+seqchecklabel.grid(column=1, row=0, sticky="w")
+spacer.grid(column=2, row=0, sticky="we")
 
 # run
 root.mainloop()
