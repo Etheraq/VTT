@@ -2,7 +2,8 @@
 from tkinter import *
 from tkinter import ttk, filedialog, messagebox
 from datetime import datetime, date, time, timedelta
-import zlib, base64
+import zlib
+import base64
 import tempfile
 import os
 import re
@@ -68,6 +69,7 @@ def enable_widgets():
     millispin.set(0)
     seqspin.set(1)
     seq_check.set(0)
+    set_seq()
     mode.set("add")
 
 
@@ -341,7 +343,7 @@ def set_seq():
 def print_newcue(cueline):
     """Used in writing the new file. and prints a new cueline with the
     new time value.
-    :param a line string from the original file that includes a cue
+    :param cueline line string from the original file that includes a cue
     :returns string line with the new cue values
     """
     hr_regex = r"^(\d\d):(\d\d):(\d\d).(\d\d\d) --> (\d\d):(\d\d):(\d\d).(" \
@@ -436,6 +438,28 @@ def peek_line(f):
     return line
 
 
+def is_dspaced(f):
+    check = False
+    with open(f, 'r', encoding='utf-8') as f1:
+        for line in f1:
+            line = f1.readline()
+            if line == "\n":
+                check = True
+            else:
+                return False
+    return check
+
+
+def to_sspaced(fin):
+    fout = fin + ".tmp"
+    with open(fin, 'r', encoding='utf-8') as f1, \
+            open(fout, 'w', encoding='utf-8') as f2:
+        for line in f1:
+            f2.write(line)
+            line = f1.readline()
+    return fout
+
+
 def write_newvtt(fin, fout):
     """Reads through the old file and writes into the new file with the
     altered cue values."""
@@ -444,6 +468,9 @@ def write_newvtt(fin, fout):
     min_regex = r"^\d\d:\d\d.\d\d\d --> \d\d:\d\d.\d\d\d.*"
 
     sequence = int(seqspin.get())
+
+    if is_dspaced(fin):
+        fin = to_sspaced(fin)
 
     with open(fin, 'r', encoding='utf-8') as f1, \
             open(fout, 'w', encoding='utf-8') as f2:
@@ -473,6 +500,14 @@ def write_newvtt(fin, fout):
                     else:
                         f2.write(line)
             line = f1.readline()
+
+    print(fin)
+    print(re.search(r"\.tmp$", fin))
+    if re.search(r"\.tmp$", fin):
+        print("tempfile found: " + fin)
+        os.remove(fin)
+    else:
+        print("wtf")
 
 
 # Frames
