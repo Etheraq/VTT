@@ -229,6 +229,8 @@ def validate_hour(data):
             return False
     elif data == "\b":
         return True
+    elif data == '':
+        return True
     else:
         return False
 
@@ -332,7 +334,6 @@ def set_delta():
 
 
 def set_seq():
-    print(seq_check.get())
     if seq_check.get() == 0:
         seqspin.state(["disabled"])
     else:
@@ -489,7 +490,6 @@ def write_newvtt(fin, fout):
                     if line == "\n":
                         f2.write(line)
                         f2.write(str(sequence) + "\n")
-                        print(str(sequence))
                         sequence += 1
                     else:
                         f2.write(str(sequence) + "\n")
@@ -501,13 +501,10 @@ def write_newvtt(fin, fout):
                         f2.write(line)
             line = f1.readline()
 
-    print(fin)
-    print(re.search(r"\.tmp$", fin))
     if re.search(r"\.tmp$", fin):
-        print("tempfile found: " + fin)
         os.remove(fin)
     else:
-        print("wtf")
+        pass
 
 
 # Frames
